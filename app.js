@@ -1,12 +1,10 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
 if(process.env.NODE_ENV!="production"){
     require('dotenv').config();
 }
 
 const express=require("express");
 const app=express();
-const port=3050;
+const port=process.env.PORT || 3050;
 const path=require("path");
 const methodoverride=require("method-override");
 
@@ -31,7 +29,9 @@ const passport=require("passport");
 const localStrategy=require("passport-local");
 const User =require("./models/user.js");
 const userRouter=require("./routes/user.js");
+
 const dbUrl=process.env.ATLAS_DBURL;
+
 app.engine('ejs', ejsMate);
 
 main().then((res)=>{
@@ -42,16 +42,19 @@ main().then((res)=>{
 async function main() {
     await mongoose.connect(dbUrl);
 }
+
 const store=MongoStore.create({
     mongoUrl:dbUrl,
     crypto:{
         secret:process.env.SECRET,
     },
     touchAfter:24*3600,
-})
-store.on("error",()=>{
+});
+
+store.on("error",(err)=>{
     console.log("error in mongo session store",err);
-})
+});
+
 const sessionOption={
     store,
     secret:process.env.SECRET,
@@ -63,10 +66,6 @@ const sessionOption={
         httpOnly:true,
     },
 };
-
-app.listen(port,()=>{
-    console.log(`app is listening on port${port}`);
-});
 
 app.use(session(sessionOption));
 app.use(flash());
@@ -101,6 +100,8 @@ app.use("/listing",listings);
 
 app.use("/listing/:id/reviews",reviewrouter);
 
+app.use("/",userRouter);
+
 app.use((req,res,next)=>{
     next(new ExpressError(404,"Page Not Found!"));
 });
@@ -112,4 +113,8 @@ app.use((err,req,res,next)=>{
     }=err;
 
     res.render("listing/error.ejs",{message});
+});
+
+app.listen(port, "0.0.0.0", () => {
+    console.log(`app is listening on port ${port}`);
 });
